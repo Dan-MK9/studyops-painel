@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyOps | Painel de Estudos Sincronizado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #0b1120;
+            color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .check-anim { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .check-anim:active { transform: scale(0.85); }
+    </style>
+</head>
+<body class="min-h-screen p-3 sm:p-6 md:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Cabeçalho -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl">
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="graduation-cap" class="text-indigo-400 w-8 h-8"></i>
+                    <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+                        StudyOps Tracker
+                    </h1>
+                </div>
+                <p class="text-slate-400 text-xs sm:text-sm mt-1">Rotina de estudos diária e sincronização multi-dispositivos.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5">
+                <!-- Status da Nuvem -->
+                <div id="syncStatusBadge" class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400">
+                    <span class="w-2 h-2 rounded-full bg-slate-500" id="syncDot"></span>
+                    <span id="syncText">Apenas Local</span>
+                </div>
+
+                <!-- Botão Forçar Sync -->
+                <button onclick="syncFromCloud()" id="btnPullCloud" class="hidden text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 px-3 py-2 rounded-xl border border-slate-700 transition flex items-center gap-1.5" title="Baixar dados mais recentes da nuvem">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Atualizar
+                </button>
+
+                <!-- Botão Configurar Nuvem -->
+                <button onclick="toggleModal('cloudModal')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                    <i data-lucide="cloud" class="w-4 h-4"></i> Sincronizar Nuvem
+                </button>
+            </div>
+        </header>
+
+        <!-- Linha Superior: KPIs + Timer Pomodoro -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Progresso de Hoje -->
+            <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+                <div>
+                    <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Estudos de Hoje</span>
+                    <div class="text-2xl font-bold mt-1 text-white" id="todayProgressText">0/0</div>
+                    <span class="text-xs text-emerald-400 mt-1 inline-block" id="todayPercentText">0% concluído</span>
+                </div>
+                <div class="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i data-lucide="book-open-check" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <!-- Ofensiva de Estudos -->
+            <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+                <div>
+                    <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Maior Ofensiva</span>
+                    <div class="text-2xl font-bold mt-1 text-amber-400 flex items-center gap-1.5">
+                        <span id="bestStreakText">0</span> <span class="text-sm font-normal text-slate-400">dias seguidos</span>
+                    </div>
+                    <span class="text-xs text-slate-400 mt-1 inline-block">Consistência nos estudos</span>
+                </div>
+                <div class="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <i data-lucide="flame" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <!-- Desempenho Semanal -->
+            <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+                <div>
+                    <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Média Semanal</span>
+                    <div class="text-2xl font-bold mt-1 text-cyan-400" id="weeklyRateText">0%</div>
+                    <span class="text-xs text-slate-400 mt-1 inline-block" id="totalChecksWeekText">0 sessões na semana</span>
+                </div>
+                <div class="w-11 h-11 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <i data-lucide="award" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <!-- Mini Timer Pomodoro para Estudos -->
+            <div class="bg-slate-900/90 border border-indigo-500/30 p-4 rounded-2xl flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-indigo-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
+                        <i data-lucide="timer" class="w-3.5 h-3.5"></i> Pomodoro (25m)
+                    </span>
+                    <span id="pomodoroMode" class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">Foco</span>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <span id="timerDisplay" class="text-2xl font-mono font-bold text-white">25:00</span>
+                    <div class="flex gap-1.5">
+                        <button onclick="toggleTimer()" id="timerBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
+                            Iniciar
+                        </button>
+                        <button onclick="resetTimer()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg text-xs transition">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grade de Estudos + Gráfico -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Coluna 1 e 2: Metas de Estudo -->
+            <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 p-5 sm:p-6 rounded-2xl flex flex-col justify-between space-y-6">
+                <div>
+                    <div class="flex flex-col justify-between gap-4 mb-6">
+                        <div>
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i data-lucide="layers" class="w-5 h-5 text-indigo-400"></i>
+                                Cronograma Diário de Estudos
+                            </h2>
+                            <p class="text-xs text-slate-400">Marque as disciplinas ou laboratórios concluídos em cada dia.</p>
+                        </div>
+
+                        <!-- Adicionar Meta de Estudo com Categoria -->
+                        <form id="addHabitForm" class="flex flex-col sm:flex-row gap-2">
+                            <select id="habitCategory" class="bg-slate-950 border border-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                                <option value="Faculdade">🎓 Faculdade</option>
+                                <option value="Redes & Cyber">🛡️ Redes & Cyber</option>
+                                <option value="Labs & Prática">💻 Labs & Prática</option>
+                                <option value="Leitura & Revisão">📚 Revisão</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="habitInput" 
+                                placeholder="Ex: Lab no Packet Tracer / Aula da Faculdade..." 
+                                required
+                                class="bg-slate-950 border border-slate-700 text-sm rounded-xl px-3.5 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 flex-1"
+                            >
+                            <button 
+                                type="submit" 
+                                class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-4 py-2 rounded-xl text-sm transition flex items-center justify-center gap-1.5 shrink-0"
+                            >
+                                <i data-lucide="plus" class="w-4 h-4"></i> Adicionar
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Tabela Responsiva -->
+                    <div class="overflow-x-auto custom-scrollbar -mx-2 px-2">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr id="tableHeaderRow" class="border-b border-slate-800 text-xs text-slate-400 uppercase"></tr>
+                            </thead>
+                            <tbody id="habitsTableBody" class="divide-y divide-slate-800/70 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Rodapé da Tabela com Export/Import rápido -->
+                <div class="text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800">
+                    <span>💡 No celular, deslize a tabela para o lado se necessário.</span>
+                    <div class="flex gap-3">
+                        <button onclick="exportDataFile()" class="hover:text-slate-300 underline">Exportar Backup</button>
+                        <button onclick="resetDefaultData()" class="hover:text-rose-400 underline">Resetar Padrão</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna 3: Gráfico Semanal -->
+            <div class="bg-slate-900/90 border border-slate-800 p-5 sm:p-6 rounded-2xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2 mb-1">
+                        <i data-lucide="line-chart" class="w-5 h-5 text-cyan-400"></i>
+                        Constância na Semana
+                    </h2>
+                    <p class="text-xs text-slate-400 mb-6">Porcentagem de metas de estudo cumpridas por dia.</p>
+                    
+                    <div class="relative h-64 w-full">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-800">
+                    <div class="flex justify-between text-xs mb-2">
+                        <span class="text-slate-300 font-medium">Meta Diária Cumprida</span>
+                        <span id="batteryPercent" class="text-emerald-400 font-bold">0%</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div id="batteryBar" class="h-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal de Configuração de Sincronização (GitHub Gist) -->
+    <div id="cloudModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-700 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="cloud-cog" class="w-5 h-5 text-indigo-400"></i>
+                    Sincronizar PC, Notebook e Celular
+                </h3>
+                <button onclick="toggleModal('cloudModal')" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Para manter tudo salvo e atualizado gratuitamente em qualquer lugar, conecte um <strong>GitHub Personal Token</strong> (com permissão <code>gist</code>). O painel salvará seu progresso na sua conta do GitHub automaticamente a cada clique.
+            </p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">1. Seu GitHub Token (Personal Access Token)</label>
+                    <input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">2. ID da Nuvem (Gist ID) — <span class="text-indigo-400">Deixe em branco na 1ª vez</span></label>
+                    <input type="text" id="ghGistIdInput" placeholder="Será gerado automaticamente se ficar vazio" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div id="cloudModalFeedback" class="text-xs text-amber-400 hidden"></div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button onclick="disconnectCloud()" class="text-xs text-rose-400 hover:underline mr-auto">Desconectar</button>
+                <button onclick="toggleModal('cloudModal')" class="px-4 py-2 rounded-xl text-xs bg-slate-800 text-slate-300 hover:bg-slate-700">Fechar</button>
+                <button onclick="saveCloudConfig()" id="btnSaveCloud" class="px-4 py-2 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Conectar e Sincronizar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'studyops_data_v2';
+        const CLOUD_CONFIG_KEY = 'studyops_cloud_v2';
+        let weeklyChartInstance = null;
+
+        // Cores por categoria de estudo
+        const categoryColors = {
+            'Faculdade': 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+            'Redes & Cyber': 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+            'Labs & Prática': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+            'Leitura & Revisão': 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+        };
+
+        // --- POMODORO TIMER ---
+        let timerSeconds = 25 * 60;
+        let timerInterval = null;
+
+        function updateTimerUI() {
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('timerDisplay').textContent = `${mins}:${secs}`;
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('timerBtn');
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                btn.textContent = 'Retomar';
+            } else {
+                btn.textContent = 'Pausar';
+                timerInterval = setInterval(() => {
+                    if (timerSeconds > 0) {
+                        timerSeconds--;
+                        updateTimerUI();
+                    } else {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        btn.textContent = 'Iniciar';
+                        alert('⏰ Sessão Pomodoro concluída! Hora de marcar sua meta de estudo e descansar 5 minutos.');
+                        timerSeconds = 25 * 60;
+                        updateTimerUI();
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timerSeconds = 25 * 60;
+            document.getElementById('timerBtn').textContent = 'Iniciar';
+            updateTimerUI();
+        }
+
+        // --- DATAS E ESTADO INICIAL ---
+        function getFormattedDateKey(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getLast7Days() {
+            const days = [];
+            const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(today.getDate() - i);
+                days.push({
+                    key: getFormattedDateKey(d),
+                    dayName: dayNames[d.getDay()],
+                    dayNum: String(d.getDate()).padStart(2, '0'),
+                    isToday: i === 0
+                });
+            }
+            return days;
+        }
+
+        function getDefaultHabits() {
+            const days = getLast7Days();
+            return [
+                {
+                    id: 's1',
+                    category: 'Faculdade',
+                    name: 'Assistir aulas / Avançar módulos EAD',
+                    history: { [days[1].key]: true, [days[2].key]: true, [days[4].key]: true, [days[5].key]: true }
+                },
+                {
+                    id: 's2',
+                    category: 'Redes & Cyber',
+                    name: 'Estudar protocolos TCP/IP ou TryHackMe',
+                    history: { [days[0].key]: true, [days[2].key]: true, [days[3].key]: true, [days[4].key]: true, [days[5].key]: true }
+                },
+                {
+                    id: 's3',
+                    category: 'Labs & Prática',
+                    name: 'Prática em VM (Active Directory / Linux / Packet Tracer)',
+                    history: { [days[1].key]: true, [days[3].key]: true, [days[5].key]: true }
+                },
+                {
+                    id: 's4',
+                    category: 'Leitura & Revisão',
+                    name: 'Documentar resumos ou lab no GitHub (30m)',
+                    history: { [days[0].key]: true, [days[4].key]: true, [days[5].key]: true }
+                }
+            ];
+        }
+
+        let habits = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!habits || !Array.isArray(habits)) {
+            habits = getDefaultHabits();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+        }
+
+        let cloudConfig = JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)) || { token: '', gistId: '' };
+
+        // --- SINCRONIZAÇÃO EM NUVEM (GITHUB GIST) ---
+        function updateSyncBadge(state, message) {
+            const dot = document.getElementById('syncDot');
+            const text = document.getElementById('syncText');
+            const btnPull = document.getElementById('btnPullCloud');
+
+            if (state === 'synced') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                text.textContent = message || 'Nuvem Sincronizada';
+                btnPull.classList.remove('hidden');
+            } else if (state === 'syncing') {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+                text.textContent = 'Sincronizando...';
+            } else if (state === 'error') {
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                text.textContent = 'Erro na Nuvem';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+                text.textContent = 'Apenas Local';
+                btnPull.classList.add('hidden');
+            }
+        }
+
+        async function syncToCloud() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+            if (!cloudConfig.token || !cloudConfig.gistId) return;
+
+            updateSyncBadge('syncing');
+            try {
+                const res = await fetch(`https://api.github.com/gists/${cloudConfig.gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${cloudConfig.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            "studyops_sync.json": {
+                                content: JSON.stringify({ updatedAt: new Date().toISOString(), habits: habits }, null, 2)
+                            }
+                        }
+                    })
+                });
+                if (res.ok) {
+                    updateSyncBadge('synced', 'Salvo na Nuvem');
+                } else {
+                    updateSyncBadge('error');
+                }
+            } catch (err) {
+                updateSyncBadge('error');
+            }
+        }
+
+        async function syncFromCloud() {
+            if (!cloudConfig.token || !cloudConfig.gistId) return;
+            updateSyncBadge('syncing');
+            try {
+                const res = await fetch(`https://api.github.com/gists/${cloudConfig.gistId}`, {
+                    headers: {
+                        'Authorization': `token ${cloudConfig.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!res.ok) throw new Error('Falha ao buscar Gist');
+                const data = await res.json();
+                if (data.files && data.files["studyops_sync.json"]) {
+                    const parsed = JSON.parse(data.files["studyops_sync.json"].content);
+                    if (parsed.habits && Array.isArray(parsed.habits)) {
+                        habits = parsed.habits;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+                        renderDashboard();
+                    }
+                }
+                updateSyncBadge('synced', 'Sincronizado');
+            } catch (e) {
+                updateSyncBadge('error');
+            }
+        }
+
+        async function saveCloudConfig() {
+            const token = document.getElementById('ghTokenInput').value.trim();
+            let gistId = document.getElementById('ghGistIdInput').value.trim();
+            const feedback = document.getElementById('cloudModalFeedback');
+            const btn = document.getElementById('btnSaveCloud');
+
+            if (!token) {
+                feedback.textContent = 'Insira o seu Token do GitHub.';
+                feedback.classList.remove('hidden');
+                return;
+            }
+
+            btn.textContent = 'Validando...';
+            feedback.classList.add('hidden');
+
+            try {
+                if (!gistId) {
+                    // Cria um novo Gist secreto automaticamente
+                    const createRes = await fetch('https://api.github.com/gists', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            description: "StudyOps Dashboard - Dados Sincronizados de Estudo",
+                            public: false,
+                            files: {
+                                "studyops_sync.json": {
+                                    content: JSON.stringify({ updatedAt: new Date().toISOString(), habits: habits }, null, 2)
+                                }
+                            }
+                        })
+                    });
+                    if (!createRes.ok) throw new Error('Token inválido ou sem permissão de Gist.');
+                    const createdData = await createRes.json();
+                    gistId = createdData.id;
+                    document.getElementById('ghGistIdInput').value = gistId;
+                }
+
+                cloudConfig = { token, gistId };
+                localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(cloudConfig));
+                await syncFromCloud();
+                toggleModal('cloudModal');
+                alert(`✅ Nuvem conectada!\n\nSeu ID da Nuvem (Gist ID) é:\n${gistId}\n\nQuando abrir no celular ou em outro PC, basta colocar o mesmo Token e esse ID para carregar tudo!`);
+            } catch (err) {
+                feedback.textContent = err.message || 'Erro ao conectar com o GitHub.';
+                feedback.classList.remove('hidden');
+            } finally {
+                btn.textContent = 'Conectar e Sincronizar';
+            }
+        }
+
+        function disconnectCloud() {
+            localStorage.removeItem(CLOUD_CONFIG_KEY);
+            cloudConfig = { token: '', gistId: '' };
+            document.getElementById('ghTokenInput').value = '';
+            document.getElementById('ghGistIdInput').value = '';
+            updateSyncBadge('local');
+            toggleModal('cloudModal');
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('ghTokenInput').value = cloudConfig.token || '';
+                document.getElementById('ghGistIdInput').value = cloudConfig.gistId || '';
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        // --- LÓGICA DO PAINEL ---
+        function calculateStreak(habit) {
+            let streak = 0;
+            const today = new Date();
+            for (let i = 0; i < 365; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() - i);
+                const key = getFormattedDateKey(d);
+                if (habit.history && habit.history[key]) {
+                    streak++;
+                } else {
+                    if (i === 0) continue;
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        function toggleHabitDate(habitId, dateKey) {
+            const habit = habits.find(h => h.id === habitId);
+            if (habit) {
+                if (!habit.history) habit.history = {};
+                habit.history[dateKey] = !habit.history[dateKey];
+                renderDashboard();
+                syncToCloud();
+            }
+        }
+
+        function deleteHabit(habitId) {
+            habits = habits.filter(h => h.id !== habitId);
+            renderDashboard();
+            syncToCloud();
+        }
+
+        document.getElementById('addHabitForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = document.getElementById('habitInput');
+            const category = document.getElementById('habitCategory').value;
+            const name = input.value.trim();
+            if (!name) return;
+
+            habits.push({
+                id: 'study_' + Date.now(),
+                category: category,
+                name: name,
+                history: {}
+            });
+
+            input.value = '';
+            renderDashboard();
+            syncToCloud();
+        });
+
+        function exportDataFile() {
+            const blob = new Blob([JSON.stringify(habits, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'meus_estudos_backup.json';
+            a.click();
+        }
+
+        function resetDefaultData() {
+            if (confirm('Deseja restaurar as metas de estudo padrão?')) {
+                habits = getDefaultHabits();
+                renderDashboard();
+                syncToCloud();
+            }
+        }
+
+        function renderDashboard() {
+            const days = getLast7Days();
+            const todayKey = days[days.length - 1].key;
+
+            // Header da Tabela
+            document.getElementById('tableHeaderRow').innerHTML = `
+                <th class="py-3 pr-4 font-semibold min-w-[210px]">Disciplina / Meta</th>
+                ${days.map(d => `
+                    <th class="py-3 px-1.5 text-center ${d.isToday ? 'text-emerald-400 font-bold' : ''}">
+                        <div class="text-[10px]">${d.dayName}</div>
+                        <div class="text-xs ${d.isToday ? 'bg-emerald-500/20 border border-emerald-500/40 rounded-md px-1.5 py-0.5 mt-0.5 inline-block' : 'text-slate-300'}">${d.dayNum}</div>
+                    </th>
+                `).join('')}
+                <th class="py-3 pl-2 text-center">Ofensiva</th>
+                <th class="py-3 pl-1 text-right"></th>
+            `;
+
+            // Corpo da Tabela
+            const tbody = document.getElementById('habitsTableBody');
+            if (habits.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-500">Nenhuma meta de estudo cadastrada.</td></tr>`;
+            } else {
+                tbody.innerHTML = habits.map(habit => {
+                    const streak = calculateStreak(habit);
+                    const badgeStyle = categoryColors[habit.category] || 'bg-slate-800 text-slate-300 border-slate-700';
+                    return `
+                        <tr class="group hover:bg-slate-800/40 transition">
+                            <td class="py-3.5 pr-4">
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border ${badgeStyle} inline-block mb-1">
+                                    ${habit.category || 'Estudo'}
+                                </span>
+                                <div class="font-medium text-slate-200 text-xs sm:text-sm">${habit.name}</div>
+                            </td>
+                            ${days.map(d => {
+                                const checked = habit.history && habit.history[d.key];
+                                return `
+                                    <td class="py-3.5 px-1.5 text-center ${d.isToday ? 'bg-emerald-500/5' : ''}">
+                                        <button 
+                                            onclick="toggleHabitDate('${habit.id}', '${d.key}')"
+                                            class="check-anim w-8 h-8 rounded-xl inline-flex items-center justify-center border transition ${
+                                                checked 
+                                                ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/30' 
+                                                : 'bg-slate-950 border-slate-800 text-transparent hover:border-slate-600'
+                                            }"
+                                        >
+                                            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+                                        </button>
+                                    </td>
+                                `;
+                            }).join('')}
+                            <td class="py-3.5 pl-2 text-center">
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                                    streak > 0 ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-slate-800/80 text-slate-500'
+                                }">
+                                    🔥 ${streak}d
+                                </span>
+                            </td>
+                            <td class="py-3.5 pl-1 text-right">
+                                <button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-rose-400 p-1 rounded-lg opacity-60 group-hover:opacity-100 transition">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // KPIs
+            const totalHabits = habits.length;
+            let completedToday = 0;
+            let bestStreak = 0;
+            let totalCompletedWeek = 0;
+
+            const dailyPercentages = days.map(d => {
+                if (totalHabits === 0) return 0;
+                let doneCount = 0;
+                habits.forEach(h => {
+                    if (h.history && h.history[d.key]) {
+                        doneCount++;
+                        totalCompletedWeek++;
+                    }
+                });
+                if (d.key === todayKey) completedToday = doneCount;
+                return Math.round((doneCount / totalHabits) * 100);
+            });
+
+            habits.forEach(h => {
+                const s = calculateStreak(h);
+                if (s > bestStreak) bestStreak = s;
+            });
+
+            const todayPercent = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+            const weeklyRate = (totalHabits * 7) > 0 ? Math.round((totalCompletedWeek / (totalHabits * 7)) * 100) : 0;
+
+            document.getElementById('todayProgressText').textContent = `${completedToday}/${totalHabits}`;
+            document.getElementById('todayPercentText').textContent = `${todayPercent}% concluído hoje`;
+            document.getElementById('bestStreakText').textContent = bestStreak;
+            document.getElementById('weeklyRateText').textContent = `${weeklyRate}%`;
+            document.getElementById('totalChecksWeekText').textContent = `${totalCompletedWeek} sessões na semana`;
+
+            document.getElementById('batteryPercent').textContent = `${todayPercent}%`;
+            document.getElementById('batteryBar').style.width = `${todayPercent}%`;
+
+            updateChart(days.map(d => `${d.dayName}`), dailyPercentages);
+            lucide.createIcons();
+        }
+
+        function updateChart(labels, dataPoints) {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.45)');
+            gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            if (weeklyChartInstance) {
+                weeklyChartInstance.data.labels = labels;
+                weeklyChartInstance.data.datasets[0].data = dataPoints;
+                weeklyChartInstance.update();
+                return;
+            }
+
+            weeklyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Rendimento (%)',
+                        data: dataPoints,
+                        borderColor: '#6366f1',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#0b1120',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0.35
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => v + '%' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderDashboard();
+            if (cloudConfig.token && cloudConfig.gistId) {
+                syncFromCloud();
+            }
+        });
+    </script>
+</body>
+</html>
