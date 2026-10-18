@@ -129,21 +129,23 @@
                                 <i data-lucide="layers" class="w-5 h-5 text-indigo-400"></i>
                                 Cronograma Diário de Estudos
                             </h2>
-                            <p class="text-xs text-slate-400">Marque as disciplinas ou laboratórios concluídos em cada dia.</p>
+                            <p class="text-xs text-slate-400">Marque seus estudos concluídos ou clique no lápis (✏️) para renomear uma meta sem perder a ofensiva.</p>
                         </div>
 
-                        <!-- Adicionar Meta de Estudo com Categoria -->
+                        <!-- Adicionar Meta de Estudo com as 6 Categorias -->
                         <form id="addHabitForm" class="flex flex-col sm:flex-row gap-2">
                             <select id="habitCategory" class="bg-slate-950 border border-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
-                                <option value="Faculdade">🎓 Faculdade</option>
-                                <option value="Redes & Cyber">🛡️ Redes & Cyber</option>
-                                <option value="Labs & Prática">💻 Labs & Prática</option>
-                                <option value="Leitura & Revisão">📚 Revisão</option>
+                                <option value="Acadêmico">🎓 Acadêmico</option>
+                                <option value="Redes & Infra">🌐 Redes & Infra</option>
+                                <option value="Cybersecurity">🛡️ Cybersecurity</option>
+                                <option value="Labs & Prática">🧪 Labs & Prática</option>
+                                <option value="Dev & Automação">💻 Dev & Automação</option>
+                                <option value="Portfólio & Docs">📝 Portfólio & Docs</option>
                             </select>
                             <input 
                                 type="text" 
                                 id="habitInput" 
-                                placeholder="Ex: Lab no Packet Tracer / Aula da Faculdade..." 
+                                placeholder="Ex: Estudar 1 módulo técnico / Praticar no Lab..." 
                                 required
                                 class="bg-slate-950 border border-slate-700 text-sm rounded-xl px-3.5 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 flex-1"
                             >
@@ -167,12 +169,12 @@
                     </div>
                 </div>
 
-                <!-- Rodapé da Tabela com Export/Import rápido -->
+                <!-- Rodapé da Tabela -->
                 <div class="text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800">
                     <span>💡 No celular, deslize a tabela para o lado se necessário.</span>
                     <div class="flex gap-3">
                         <button onclick="exportDataFile()" class="hover:text-slate-300 underline">Exportar Backup</button>
-                        <button onclick="resetDefaultData()" class="hover:text-rose-400 underline">Resetar Padrão</button>
+                        <button onclick="resetDefaultData()" class="hover:text-rose-400 underline">Restaurar Exemplos</button>
                     </div>
                 </div>
             </div>
@@ -205,6 +207,50 @@
         </div>
     </div>
 
+    <!-- Modal de Edição de Meta (Renomear / Trocar Categoria sem perder ofensiva) -->
+    <div id="editModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-700 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="pencil" class="w-5 h-5 text-emerald-400"></i>
+                    Editar Meta de Estudo
+                </h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-400">
+                Altere a categoria ou o título abaixo. Todo o seu histórico de dias marcados e sua ofensiva (🔥) serão mantidos!
+            </p>
+
+            <input type="hidden" id="editHabitId">
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Categoria / Pilar</label>
+                    <select id="editHabitCategory" class="w-full bg-slate-950 border border-slate-700 text-sm rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <option value="Acadêmico">🎓 Acadêmico</option>
+                        <option value="Redes & Infra">🌐 Redes & Infra</option>
+                        <option value="Cybersecurity">🛡️ Cybersecurity</option>
+                        <option value="Labs & Prática">🧪 Labs & Prática</option>
+                        <option value="Dev & Automação">💻 Dev & Automação</option>
+                        <option value="Portfólio & Docs">📝 Portfólio & Docs</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Descrição da Meta Diária</label>
+                    <input type="text" id="editHabitName" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                <button onclick="closeEditModal()" class="px-4 py-2 rounded-xl text-xs bg-slate-800 text-slate-300 hover:bg-slate-700">Cancelar</button>
+                <button onclick="saveEditedHabit()" class="px-4 py-2 rounded-xl text-xs bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Configuração de Sincronização (GitHub Gist) -->
     <div id="cloudModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-700 max-w-md w-full rounded-2xl p-6 space-y-4 shadow-2xl">
@@ -219,7 +265,7 @@
             </div>
             
             <p class="text-xs text-slate-300 leading-relaxed">
-                Para manter tudo salvo e atualizado gratuitamente em qualquer lugar, conecte um <strong>GitHub Personal Token</strong> (com permissão <code>gist</code>). O painel salvará seu progresso na sua conta do GitHub automaticamente a cada clique.
+                Para manter tudo salvo e atualizado gratuitamente em qualquer lugar, conecte seu <strong>GitHub Personal Token</strong> (com permissão <code>gist</code>).
             </p>
 
             <div class="space-y-3">
@@ -248,11 +294,16 @@
         const CLOUD_CONFIG_KEY = 'studyops_cloud_v2';
         let weeklyChartInstance = null;
 
-        // Cores por categoria de estudo
+        // Cores por categoria (6 pilares + compatibilidade com nomes antigos)
         const categoryColors = {
+            'Acadêmico': 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
             'Faculdade': 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+            'Redes & Infra': 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
             'Redes & Cyber': 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+            'Cybersecurity': 'bg-rose-500/15 text-rose-300 border-rose-500/30',
             'Labs & Prática': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+            'Dev & Automação': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+            'Portfólio & Docs': 'bg-purple-500/15 text-purple-300 border-purple-500/30',
             'Leitura & Revisão': 'bg-purple-500/15 text-purple-300 border-purple-500/30'
         };
 
@@ -324,31 +375,36 @@
         }
 
         function getDefaultHabits() {
-            const days = getLast7Days();
             return [
                 {
                     id: 's1',
-                    category: 'Faculdade',
-                    name: 'Assistir aulas / Avançar módulos EAD',
-                    history: { [days[1].key]: true, [days[2].key]: true, [days[4].key]: true, [days[5].key]: true }
+                    category: 'Acadêmico',
+                    name: 'Avançar conteúdo ou atividade da faculdade',
+                    history: {}
                 },
                 {
                     id: 's2',
-                    category: 'Redes & Cyber',
-                    name: 'Estudar protocolos TCP/IP ou TryHackMe',
-                    history: { [days[0].key]: true, [days[2].key]: true, [days[3].key]: true, [days[4].key]: true, [days[5].key]: true }
+                    category: 'Redes & Infra',
+                    name: 'Estudar 1 aula/módulo técnico (Redes / Servidores)',
+                    history: {}
                 },
                 {
                     id: 's3',
-                    category: 'Labs & Prática',
-                    name: 'Prática em VM (Active Directory / Linux / Packet Tracer)',
-                    history: { [days[1].key]: true, [days[3].key]: true, [days[5].key]: true }
+                    category: 'Cybersecurity',
+                    name: 'Praticar no TryHackMe ou análise de tráfego/segurança',
+                    history: {}
                 },
                 {
                     id: 's4',
-                    category: 'Leitura & Revisão',
-                    name: 'Documentar resumos ou lab no GitHub (30m)',
-                    history: { [days[0].key]: true, [days[4].key]: true, [days[5].key]: true }
+                    category: 'Labs & Prática',
+                    name: 'Prática em laboratório (VM / AD / Linux / Packet Tracer)',
+                    history: {}
+                },
+                {
+                    id: 's5',
+                    category: 'Portfólio & Docs',
+                    name: 'Documentar resumo técnico ou atualizar GitHub',
+                    history: {}
                 }
             ];
         }
@@ -458,7 +514,6 @@
 
             try {
                 if (!gistId) {
-                    // Cria um novo Gist secreto automaticamente
                     const createRes = await fetch('https://api.github.com/gists', {
                         method: 'POST',
                         headers: {
@@ -486,7 +541,7 @@
                 localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(cloudConfig));
                 await syncFromCloud();
                 toggleModal('cloudModal');
-                alert(`✅ Nuvem conectada!\n\nSeu ID da Nuvem (Gist ID) é:\n${gistId}\n\nQuando abrir no celular ou em outro PC, basta colocar o mesmo Token e esse ID para carregar tudo!`);
+                alert(`✅ Nuvem conectada!\n\nSeu ID da Nuvem (Gist ID) é:\n${gistId}`);
             } catch (err) {
                 feedback.textContent = err.message || 'Erro ao conectar com o GitHub.';
                 feedback.classList.remove('hidden');
@@ -515,6 +570,48 @@
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
             }
+        }
+
+        // --- EDIÇÃO DE METAS (SEM PERDER OFENSIVA) ---
+        function openEditModal(habitId) {
+            const habit = habits.find(h => h.id === habitId);
+            if (!habit) return;
+
+            document.getElementById('editHabitId').value = habit.id;
+            document.getElementById('editHabitName').value = habit.name;
+            
+            const select = document.getElementById('editHabitCategory');
+            // Se a categoria antiga não existir no select novo, seleciona a primeira
+            const optionExists = Array.from(select.options).some(opt => opt.value === habit.category);
+            select.value = optionExists ? habit.category : 'Acadêmico';
+
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('editHabitName').focus();
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveEditedHabit() {
+            const id = document.getElementById('editHabitId').value;
+            const newCategory = document.getElementById('editHabitCategory').value;
+            const newName = document.getElementById('editHabitName').value.trim();
+
+            if (!newName) return;
+
+            const habit = habits.find(h => h.id === id);
+            if (habit) {
+                habit.category = newCategory;
+                habit.name = newName;
+                renderDashboard();
+                syncToCloud();
+            }
+            closeEditModal();
         }
 
         // --- LÓGICA DO PAINEL ---
@@ -546,9 +643,11 @@
         }
 
         function deleteHabit(habitId) {
-            habits = habits.filter(h => h.id !== habitId);
-            renderDashboard();
-            syncToCloud();
+            if (confirm('Tem certeza que deseja excluir esta meta e o histórico dela?')) {
+                habits = habits.filter(h => h.id !== habitId);
+                renderDashboard();
+                syncToCloud();
+            }
         }
 
         document.getElementById('addHabitForm').addEventListener('submit', function(e) {
@@ -580,7 +679,7 @@
         }
 
         function resetDefaultData() {
-            if (confirm('Deseja restaurar as metas de estudo padrão?')) {
+            if (confirm('Deseja carregar as 5 metas de estudo padrão zeradas? Isso substituirá a lista atual.')) {
                 habits = getDefaultHabits();
                 renderDashboard();
                 syncToCloud();
@@ -601,13 +700,13 @@
                     </th>
                 `).join('')}
                 <th class="py-3 pl-2 text-center">Ofensiva</th>
-                <th class="py-3 pl-1 text-right"></th>
+                <th class="py-3 pl-1 text-right">Ações</th>
             `;
 
             // Corpo da Tabela
             const tbody = document.getElementById('habitsTableBody');
             if (habits.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-500">Nenhuma meta de estudo cadastrada.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-500">Nenhuma meta de estudo cadastrada. Adicione uma acima!</td></tr>`;
             } else {
                 tbody.innerHTML = habits.map(habit => {
                     const streak = calculateStreak(habit);
@@ -644,8 +743,11 @@
                                     🔥 ${streak}d
                                 </span>
                             </td>
-                            <td class="py-3.5 pl-1 text-right">
-                                <button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-rose-400 p-1 rounded-lg opacity-60 group-hover:opacity-100 transition">
+                            <td class="py-3.5 pl-1 text-right whitespace-nowrap">
+                                <button onclick="openEditModal('${habit.id}')" class="text-slate-400 hover:text-cyan-400 p-1.5 rounded-lg opacity-70 group-hover:opacity-100 transition" title="Editar nome ou categoria">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteHabit('${habit.id}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg opacity-70 group-hover:opacity-100 transition" title="Excluir meta">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </td>
